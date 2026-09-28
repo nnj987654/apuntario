@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apuntario - Organizador Profesional de Apuntes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="mark">A</div>
+        <h1>Apuntario</h1>
+      </div>
+      <p class="sub">Organizador profesional de apuntes. Crea espacios de trabajo para cada curso y gestiona todas tus notas en un solo lugar.</p>
+      <label for="space-name-input">Nombre de tu espacio de trabajo</label>
+      <input id="space-name-input" type="text" placeholder="p. ej. Curso 2025-2026" maxlength="40">
+      <button class="btn-primary" onclick="crearOEntrarEspacio()">Entrar / crear espacio</button>
+      <div id="spaces-list"></div>
+    </div>
+    <p class="login-hint">Tus datos se guardan en el navegador (localStorage) y persisten entre sesiones.</p>
+  </div>
+
+  <!-- APP -->
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-row">
+          <div class="name"><div class="mark">A</div> <span id="space-title">Espacio</span></div>
+          <button class="icon-btn" title="Ajustes" onclick="toggleSettings(true)">⚙</button>
+        </div>
+        <input id="search-input" type="text" placeholder="Buscar apuntes..." oninput="renderTree()">
+        <button class="add-materia-btn" onclick="showCrearMateriaModal()">+ Nueva materia</button>
+      </div>
+      <div id="tree"></div>
+    </aside>
+
+    <main id="main">
+      <div id="topbar">
+        <div id="breadcrumb"></div>
+        <div id="top-actions">
+          <span class="save-indicator" id="save-indicator"><span class="dot"></span> guardado</span>
+          <button class="icon-btn" id="mobile-menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')" style="display: none;">☰</button>
+        </div>
+      </div>
+      <div id="editor-area">
+        <div id="empty-state">
+          <div class="big">📓</div>
+          <h3>Selecciona o crea un apunte</h3>
+          <p>Elige una materia en el lateral, añade un tema y un bloque, y empieza a crear tus apuntes.</p>
+        </div>
+        <div class="editor-inner" id="editor-inner" style="display: none;">
+          <input id="note-title" placeholder="Título del apunte" oninput="onTitleInput()">
+          <div id="note-meta"></div>
+          
+          <div class="content-tabs">
+            <button class="tab-btn active" data-tab="texto" onclick="switchContentTab('texto')">📝 Texto</button>
+            <button class="tab-btn" data-tab="tabla" onclick="switchContentTab('tabla')">📊 Tabla</button>
+            <button class="tab-btn" data-tab="esquema" onclick="switchContentTab('esquema')">🎨 Esquema</button>
+            <button class="tab-btn" data-tab="archivos" onclick="switchContentTab('archivos')">📎 Archivos</button>
+          </div>
+
+          <!-- TAB: TEXTO -->
+          <div class="tab-content active" id="tab-texto">
+            <div id="toolbar">
+              <button onclick="cmd('bold')" title="Negrita"><b>N</b></button>
+              <button onclick="cmd('italic')" title="Cursiva"><i>K</i></button>
+              <button onclick="cmd('underline')" title="Subrayado"><u>S</u></button>
+              <div class="sep"></div>
+              <button onclick="formatBlock('h2')" title="Título grande">H2</button>
+              <button onclick="formatBlock('h3')" title="Título pequeño">H3</button>
+              <button onclick="formatBlock('p')" title="Párrafo">P</button>
+              <div class="sep"></div>
+              <button onclick="cmd('insertUnorderedList')" title="Lista">• Lista</button>
+              <button onclick="cmd('insertOrderedList')" title="Lista numerada">1. Lista</button>
+              <button onclick="formatBlock('blockquote')" title="Cita">❝ Cita</button>
+              <div class="sep"></div>
+              <button class="hl-btn" onclick="toggleHighlight()" title="Resaltar">✎ Resaltar</button>
+              <button onclick="document.getElementById('img-input').click()" title="Insertar imagen">🖼 Imagen</button>
+            </div>
+            <div id="note-content" contenteditable="true" oninput="onContentInput()" class="note-content"></div>
+            <input type="file" id="img-input" accept="image/*" style="display: none;" onchange="insertImage(event)">
+          </div>
+
+          <!-- TAB: TABLA -->
+          <div class="tab-content" id="tab-tabla">
+            <div class="tabla-controls">
+              <div class="control-group">
+                <label>Filas:</label>
+                <input type="number" id="tabla-filas" value="3" min="1" max="20">
+              </div>
+              <div class="control-group">
+                <label>Columnas:</label>
+                <input type="number" id="tabla-cols" value="3" min="1" max="10">
+              </div>
+              <button class="btn-secondary" onclick="crearTabla()">Crear tabla</button>
+            </div>
+            <div id="tabla-container"></div>
+          </div>
+
+          <!-- TAB: ESQUEMA -->
+          <div class="tab-content" id="tab-esquema">
+            <div class="esquema-controls">
+              <button class="btn-secondary" onclick="addEsquemaBox()">+ Añadir caja</button>
+              <button class="btn-secondary" onclick="downloadEsquema()">💾 Descargar esquema</button>
+              <button class="btn-secondary" onclick="limpiarEsquema()">🗑 Limpiar esquema</button>
+            </div>
+            <canvas id="esquema-canvas" class="esquema-canvas"></canvas>
+          </div>
+
+          <!-- TAB: ARCHIVOS -->
+          <div class="tab-content" id="tab-archivos">
+            <div class="archivos-controls">
+              <button class="btn-secondary" onclick="document.getElementById('pdf-input').click()">📄 Subir PDF</button>
+              <button class="btn-secondary" onclick="document.getElementById('file-input').click()">📎 Subir archivo</button>
+              <input type="file" id="pdf-input" accept="application/pdf" style="display: none;" onchange="insertPDF(event)">
+              <input type="file" id="file-input" style="display: none;" onchange="insertFile(event)">
+            </div>
+            <div id="archivos-list" class="archivos-list"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODALS -->
+  
+  <!-- Modal: Crear Materia -->
+  <div id="modal-crear-materia" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Nueva Materia</h2>
+        <button class="modal-close" onclick="closeModal('modal-crear-materia')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="materia-name">Nombre de la materia</label>
+          <input type="text" id="materia-name" placeholder="Ej: Matemáticas, Historia..." maxlength="50">
+        </div>
+        <div class="form-group">
+          <label for="materia-color">Color</label>
+          <div class="color-picker">
+            <span class="color-option" style="background: #8fae95;" data-color="#8fae95"></span>
+            <span class="color-option" style="background: #8aa3c9;" data-color="#8aa3c9"></span>
+            <span class="color-option" style="background: #c99a8a;" data-color="#c99a8a"></span>
+            <span class="color-option" style="background: #c9b98a;" data-color="#c9b98a"></span>
+            <span class="color-option" style="background: #a48ac9;" data-color="#a48ac9"></span>
+            <span class="color-option" style="background: #8ac9bd;" data-color="#8ac9bd"></span>
+          </div>
+          <input type="hidden" id="materia-color-value" value="#8fae95">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-crear-materia')">Cancelar</button>
+        <button class="btn-primary" onclick="confirmarCrearMateria()">Crear materia</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmación -->
+  <div id="modal-confirm" class="modal">
+    <div class="modal-content modal-small">
+      <div class="modal-header">
+        <h2 id="confirm-title">Confirmar acción</h2>
+        <button class="modal-close" onclick="closeModal('modal-confirm')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('modal-confirm')">Cancelar</button>
+        <button class="btn-danger" id="confirm-btn" onclick="">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div id="settings-backdrop" onclick="toggleSettings(false)"></div>
+  <div id="settings-panel">
+    <button class="close-settings" onclick="toggleSettings(false)">✕</button>
+    <h3>Ajustes</h3>
+    <div class="setting-row">
+      <label>Tema</label>
+      <div class="theme-toggle">
+        <button id="theme-dark-btn" onclick="setTheme('dark')">Oscuro</button>
+        <button id="theme-light-btn" onclick="setTheme('light')">Claro</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>Tamaño de letra</label>
+      <div class="font-controls">
+        <button onclick="changeFontScale(-0.05)">A−</button>
+        <span id="font-scale-label">100%</span>
+        <button onclick="changeFontScale(0.05)">A+</button>
+      </div>
+    </div>
+    <div class="setting-row">
+      <label>Información</label>
+      <p style="font-size: 12px; color: var(--text-dim); margin: 0;">
+        <strong>Apuntario v1.0</strong><br>
+        Organizador profesional de apuntes<br>
+        <a href="https://github.com/nnj987654/apuntario" target="_blank" style="color: var(--accent);">Ver en GitHub</a>
+      </p>
+    </div>
+    <button id="logout-btn" onclick="confirmarSalir()">Salir de este espacio</button>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
